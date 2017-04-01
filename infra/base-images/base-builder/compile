@@ -17,6 +17,14 @@
 
 echo "---------------------------------------------------------------"
 
+COMMIT=$1
+if ! [ -z "$COMMIT" ]; then
+  pushd $SRC
+  git pull --unshallow
+  git checkout $COMMIT
+  popd
+fi
+
 if [ -z "${SANITIZER_FLAGS-}" ]; then
   FLAGS_VAR="SANITIZER_FLAGS_${SANITIZER}"
   export SANITIZER_FLAGS=$(echo ${!FLAGS_VAR})
@@ -51,3 +59,4 @@ if [ "${BUILD_UID-0}" -ne "0" ]; then
 else
   $BUILD_CMD
 fi
+

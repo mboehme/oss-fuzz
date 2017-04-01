@@ -53,6 +53,7 @@ def main():
       'build_fuzzers', help='Build fuzzers for a project.')
   _add_engine_args(build_fuzzers_parser)
   _add_sanitizer_args(build_fuzzers_parser)
+  _add_commit_args(build_fuzzers_parser)
   build_fuzzers_parser.add_argument('-e', action='append', help="set environment variable e.g. VAR=value")
   build_fuzzers_parser.add_argument('project_name')
   build_fuzzers_parser.add_argument('source_path', help='path of local source',
@@ -61,6 +62,7 @@ def main():
   run_fuzzer_parser = subparsers.add_parser(
       'run_fuzzer', help='Run a fuzzer.')
   _add_engine_args(run_fuzzer_parser)
+  _add_commit_args(run_fuzzer_parser)
   run_fuzzer_parser.add_argument('project_name', help='name of the project')
   run_fuzzer_parser.add_argument('fuzzer_name', help='name of the fuzzer')
   run_fuzzer_parser.add_argument('fuzzer_args', help='arguments to pass to the fuzzer',
@@ -68,6 +70,7 @@ def main():
 
   coverage_parser = subparsers.add_parser(
       'coverage', help='Run a fuzzer for a while and generate coverage.')
+  _add_commit_args(coverage_parser)
   coverage_parser.add_argument('--run_time', default=60,
                       help='time in seconds to run fuzzer')
   coverage_parser.add_argument('project_name', help='name of the project')
@@ -77,6 +80,7 @@ def main():
 
   reproduce_parser = subparsers.add_parser(
       'reproduce', help='Reproduce a crash.')
+  _add_commit_args(reproduce_parser)
   reproduce_parser.add_argument('project_name', help='name of the project')
   reproduce_parser.add_argument('fuzzer_name', help='name of the fuzzer')
   reproduce_parser.add_argument('testcase_path', help='path of local testcase')
@@ -85,6 +89,7 @@ def main():
 
   shell_parser = subparsers.add_parser(
       'shell', help='Run /bin/bash in an image.')
+  _add_commit_args(shell_parser)
   shell_parser.add_argument('project_name', help='name of the project')
 
   args = parser.parse_args()
@@ -123,7 +128,8 @@ def _check_project_exists(project_name):
 def _check_fuzzer_exists(project_name, fuzzer_name):
   """Checks if a fuzzer exists."""
   command = ['docker', 'run', '--rm']
-  command.extend(['-v', '%s:/out' % os.path.join(BUILD_DIR, 'out', project_name)])
+  command.extend(['-v', '%s/%s:/out' % (os.path.join(BUILD_DIR, 'out', project_name),
+			    	        (args.commit if args.commit is not None else ""))])
   command.append('ubuntu:16.04')
 
   command.extend(['/bin/bash', '-c', 'test -f /out/%s' % fuzzer_name])
@@ -159,6 +165,11 @@ def _add_sanitizer_args(parser):
   """Add common sanitizer args."""
   parser.add_argument('--sanitizer', default='address',
                       choices=['address', 'memory', 'undefined'])
+
+
+def _add_commit_args(parser):
+  """Add optional commit args."""
+  parser.add_argument('-c', '--commit', help="Checkout a specific commit")
 
 
 def _build_image(image_name, no_cache=False):
@@ -256,9 +267,12 @@ def build_fuzzers(args):
         '%s:/src/%s' % (_get_absolute_path(args.source_path), args.project_name)
     ]
   command += [
-      '-v', '%s:/out' % os.path.join(BUILD_DIR, 'out', project_name),
-      '-v', '%s:/work' % os.path.join(BUILD_DIR, 'work', project_name),
-      '-t', 'gcr.io/oss-fuzz/%s' % project_name
+      '-v', '%s/%s:/out' % (os.path.join(BUILD_DIR, 'out', project_name),
+			    (args.commit if args.commit is not None else "")),
+      '-v', '%s/%s:/work' % (os.path.join(BUILD_DIR, 'work', project_name),
+			     (args.commit if args.commit is not None else "")),
+      '-t', 'gcr.io/oss-fuzz/%s' % project_name,
+      'compile', '%s' % (args.commit if args.commit is not None else "")
   ]
 
   print('Running:', _get_command_string(command))
@@ -286,7 +300,8 @@ def run_fuzzer(args):
   env = ['FUZZING_ENGINE=' + args.engine]
 
   run_args = sum([['-e', v] for v in env], []) + [
-      '-v', '%s:/out' % os.path.join(BUILD_DIR, 'out', args.project_name),
+      '-v', '%s/%s:/out' % (os.path.join(BUILD_DIR, 'out', args.project_name),
+			    (args.commit if args.commit is not None else "")),
       '-t', 'gcr.io/oss-fuzz-base/base-runner',
       'run_fuzzer',
       args.fuzzer_name,
@@ -309,7 +324,8 @@ def coverage(args):
   temp_dir = tempfile.mkdtemp()
 
   run_args = [
-      '-v', '%s:/out' % os.path.join(BUILD_DIR, 'out', args.project_name),
+      '-v', '%s/%s:/out' % (os.path.join(BUILD_DIR, 'out', args.project_name),
+			    (args.commit if args.commit is not None else "")),
       '-v', '%s:/cov' % temp_dir,
       '-w', '/cov',
       '-t', 'gcr.io/oss-fuzz-base/base-runner',
@@ -323,7 +339,8 @@ def coverage(args):
   docker_run(run_args, print_output=False)
 
   run_args = [
-      '-v', '%s:/out' % os.path.join(BUILD_DIR, 'out', args.project_name),
+      '-v', '%s/%s:/out' % (os.path.join(BUILD_DIR, 'out', args.project_name),
+			    (args.commit if args.commit is not None else "")),
       '-v', '%s:/cov' % temp_dir,
       '-w', '/cov',
       '-p', '8001:8001',
@@ -346,7 +363,8 @@ def reproduce(run_args):
     return 1
 
   run_args = [
-      '-v', '%s:/out' % os.path.join(BUILD_DIR, 'out', args.project_name),
+      '-v', '%s/%s:/out' % (os.path.join(BUILD_DIR, 'out', args.project_name),
+			    (args.commit if args.commit is not None else "")),
       '-v', '%s:/testcase' % _get_absolute_path(args.testcase_path),
       '-t', 'gcr.io/oss-fuzz-base/base-runner',
       'reproduce',
@@ -394,8 +412,10 @@ def shell(args):
     return 1
 
   run_args = [
-      '-v', '%s:/out' % os.path.join(BUILD_DIR, 'out', args.project_name),
-      '-v', '%s:/work' % os.path.join(BUILD_DIR, 'work', args.project_name),
+      '-v', '%s/%s:/out' % (os.path.join(BUILD_DIR, 'out', args.project_name),
+			    (args.commit if args.commit is not None else "")),
+      '-v', '%s/%s:/work' % (os.path.join(BUILD_DIR, 'work', args.project_name),
+			     (args.commit if args.commit is not None else "")),
       '-t', 'gcr.io/oss-fuzz/%s' % args.project_name,
       '/bin/bash'
   ]
