@@ -158,7 +158,7 @@ def _get_command_string(command):
 def _add_engine_args(parser):
   """Add common engine args."""
   parser.add_argument('--engine', default='libfuzzer',
-                      choices=['libfuzzer', 'afl'])
+                      choices=['libfuzzer', 'afl', 'aflgo'])
 
 
 def _add_sanitizer_args(parser):
@@ -272,7 +272,7 @@ def build_fuzzers(args):
       '-v', '%s/%s:/work' % (os.path.join(BUILD_DIR, 'work', project_name),
 			     (args.commit if args.commit is not None else "")),
       '-t', 'gcr.io/oss-fuzz/%s' % project_name,
-      'compile', '%s' % (args.commit if args.commit is not None else "")
+      'compile', project_name, (args.commit if args.commit is not None else "")
   ]
 
   print('Running:', _get_command_string(command))

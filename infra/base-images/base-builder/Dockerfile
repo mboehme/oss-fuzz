@@ -16,7 +16,12 @@
 
 FROM gcr.io/oss-fuzz-base/base-clang
 MAINTAINER mike.aizatsky@gmail.com
-RUN apt-get install -y git subversion jq python3 zip make
+RUN apt-get install -y git subversion jq python3 zip make gawk python3-pip && \
+    pip3 install --upgrade pip && \
+    pip3 install wllvm && \
+    pip3 install networkx && \
+    pip3 install pydotplus && \
+    ln -s $(which python3) /usr/bin/python 
 
 # Default build flags for various sanitizers.
 ENV SANITIZER_FLAGS_address "-fsanitize=address -fsanitize-address-use-after-scope"
@@ -28,7 +33,7 @@ ENV COVERAGE_FLAGS="-fsanitize-coverage=trace-pc-guard,trace-cmp"
 
 # Default sanitizer and fuzzing engine to use.
 ENV SANITIZER="address"
-ENV FUZZING_ENGINE="libfuzzer"
+ENV FUZZING_ENGINE="aflgo"
 
 # Path to fuzzing engine library.
 ENV LIB_FUZZING_ENGINE="/usr/lib/libFuzzingEngine.a"
@@ -44,7 +49,9 @@ RUN mkdir afl && \
     tar -xzv --strip-components=1 -f $SRC/afl-latest.tgz && \
     rm -rf $SRC/afl-latest.tgz
 
-COPY compile compile_afl compile_libfuzzer coverage_report srcmap /usr/local/bin/
+ADD https://raw.githubusercontent.com/jay/showlinenum/develop/showlinenum.awk $SRC/
+
+COPY compile compile_afl compile_aflgo compile_libfuzzer coverage_report srcmap /usr/local/bin/
 
 CMD ["compile"]
 

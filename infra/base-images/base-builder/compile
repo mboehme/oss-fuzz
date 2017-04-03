@@ -17,12 +17,18 @@
 
 echo "---------------------------------------------------------------"
 
-COMMIT=$1
+PROJECT=$1
+COMMIT=$2
 if ! [ -z "$COMMIT" ]; then
-  pushd $SRC
-  git pull --unshallow
+  pushd $SRC/$PROJECT >/dev/null
+
+  echo "Checking out git history of $PROJECT .."
+  if [ -f $(git rev-parse --git-dir)/shallow ]; then
+    git pull --unshallow 
+  fi
   git checkout $COMMIT
-  popd
+
+  popd >/dev/null
 fi
 
 if [ -z "${SANITIZER_FLAGS-}" ]; then
@@ -43,6 +49,22 @@ fi
 export CFLAGS="$CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
 export CXXFLAGS="$CFLAGS $CXXFLAGS_EXTRA"
 
+if [[ "$FUZZING_ENGINE" == aflgo ]]; then
+  export LLVM_COMPILER=clang
+  export CC=wllvm
+
+  chmod +x $SRC/showlinenum.awk
+
+  pushd $SRC/$PROJECT > /dev/null
+  git diff -U0 HEAD^ HEAD | $SRC/showlinenum.awk show_header=0 path=1 | grep -e "\.[ch]:[0-9]*:+" -e "\.cpp:[0-9]*:+" -e "\.cc:[0-9]*:+" | cut -d+ -f1 | rev | cut -c2- | rev > $SRC/changed.txt
+  popd > /dev/null
+
+  if [ $(cat $SRC/changed.txt | wc -l) -eq 0 ]; then
+    echo "No changed source code lines in commit $COMMIT of $PROJECT. Aborting.."
+    exit 1
+  fi
+
+fi
 
 echo "CC=$CC"
 echo "CXX=$CXX"
@@ -58,5 +80,29 @@ if [ "${BUILD_UID-0}" -ne "0" ]; then
   su -c "$BUILD_CMD" builder
 else
   $BUILD_CMD
+fi
+
+if [[ "$FUZZING_ENGINE" == aflgo ]]; then
+  #TODO Modify genDistance.sh to execute corpus in addition to test.sh
+
+  if ! [ -f $SRC/test.sh ]; then
+    echo "#!/bin/bash" > $SRC/test.sh
+    chmod +x $SRC/test.sh
+  fi
+
+  echo "---------------------------------------------------------------"
+  for binary in $(find /out/ -maxdepth 1 -type f -executable | grep -v "^/out/afl"); do
+    echo "Calculating distance for $binary .."
+    $SRC/aflgo/scripts/genDistance.sh $binary $SRC/changed.txt $SRC/test.sh $SRC/aflgo $SRC/distance.$binary.txt
+
+    CC=clang
+    CFLAGS="$CFLAGS -inst_config=$SRC/distance.$binary.txt"
+    
+    if [ "${BUILD_UID-0}" -ne "0" ]; then
+      su -c "$BUILD_CMD" builder
+    else
+      $BUILD_CMD
+    fi
+  done
 fi
 
