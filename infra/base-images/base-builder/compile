@@ -52,6 +52,7 @@ export CXXFLAGS="$CFLAGS $CXXFLAGS_EXTRA"
 if [[ "$FUZZING_ENGINE" == aflgo ]]; then
   export LLVM_COMPILER=clang
   export CC=wllvm
+  export CXX=$SRC/aflgo/afl-clang-fast++
 
   chmod +x $SRC/showlinenum.awk
 
@@ -83,21 +84,25 @@ else
 fi
 
 if [[ "$FUZZING_ENGINE" == aflgo ]]; then
-  #TODO Modify genDistance.sh to execute corpus in addition to test.sh
 
   if ! [ -f $SRC/test.sh ]; then
     echo "#!/bin/bash" > $SRC/test.sh
     chmod +x $SRC/test.sh
   fi
 
+  export CC=$SRC/aflgo/afl-clang-fast
+  export CXX=$SRC/aflgo/afl-clang-fast++
+  COPY_CFLAGS=$CFLAGS
+  COPY_CXXFLAGS=$CXXFLAGS
+
   echo "---------------------------------------------------------------"
   for binary in $(find /out/ -maxdepth 1 -type f -executable | grep -v "^/out/afl"); do
     echo "Calculating distance for $binary .."
-    $SRC/aflgo/scripts/genDistance.sh $binary $SRC/changed.txt $SRC/test.sh $SRC/aflgo $SRC/distance.$binary.txt
+    $SRC/aflgo/scripts/genDistance.sh $binary $SRC/changed.txt $SRC/test.sh $SRC/aflgo $SRC/distance.$(basename $binary).txt
 
-    CC=clang
-    CFLAGS="$CFLAGS -inst_config=$SRC/distance.$binary.txt"
-    
+    CFLAGS="$COPY_CFLAGS -distance=$SRC/distance.$(basename $binary).txt"
+    CXXFLAGS="$COPY_CXXFLAGS -distance=$SRC/distance.$(basename $binary).txt"
+
     if [ "${BUILD_UID-0}" -ne "0" ]; then
       su -c "$BUILD_CMD" builder
     else

@@ -125,11 +125,11 @@ def _check_project_exists(project_name):
   return True
 
 
-def _check_fuzzer_exists(project_name, fuzzer_name):
+def _check_fuzzer_exists(project_name, commit, fuzzer_name):
   """Checks if a fuzzer exists."""
   command = ['docker', 'run', '--rm']
   command.extend(['-v', '%s/%s:/out' % (os.path.join(BUILD_DIR, 'out', project_name),
-			    	        (args.commit if args.commit is not None else ""))])
+			    	        (commit if commit is not None else ""))])
   command.append('ubuntu:16.04')
 
   command.extend(['/bin/bash', '-c', 'test -f /out/%s' % fuzzer_name])
@@ -291,7 +291,7 @@ def run_fuzzer(args):
   if not _check_project_exists(args.project_name):
     return 1
 
-  if not _check_fuzzer_exists(args.project_name, args.fuzzer_name):
+  if not _check_fuzzer_exists(args.project_name, args.commit, args.fuzzer_name):
     return 1
 
   if not _build_image('base-runner'):
@@ -315,7 +315,7 @@ def coverage(args):
   if not _check_project_exists(args.project_name):
     return 1
 
-  if not _check_fuzzer_exists(args.project_name, args.fuzzer_name):
+  if not _check_fuzzer_exists(args.project_name, args.commit, args.fuzzer_name):
     return 1
 
   if not _build_image('base-runner'):
@@ -356,7 +356,7 @@ def reproduce(run_args):
   if not _check_project_exists(args.project_name):
     return 1
 
-  if not _check_fuzzer_exists(args.project_name, args.fuzzer_name):
+  if not _check_fuzzer_exists(args.project_name, args.commit, args.fuzzer_name):
     return 1
 
   if not _build_image('base-runner'):
@@ -416,6 +416,8 @@ def shell(args):
 			    (args.commit if args.commit is not None else "")),
       '-v', '%s/%s:/work' % (os.path.join(BUILD_DIR, 'work', args.project_name),
 			     (args.commit if args.commit is not None else "")),
+      '-e', 'PROJECT=%s' % args.project_name,
+      '-e', 'COMMIT=%s' % (args.commit if args.commit is not None else ""),
       '-t', 'gcr.io/oss-fuzz/%s' % args.project_name,
       '/bin/bash'
   ]
