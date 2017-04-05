@@ -53,6 +53,8 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
   export LLVM_COMPILER=clang
   export CC=wllvm
   export CXX=$SRC/aflgo/afl-clang-fast++
+  export CFLAGS="$CFLAGS -O0 -g"
+  export CXXFLAGS="$CXXFLAGS -O0 -g"
 
   chmod +x $SRC/showlinenum.awk
 
@@ -98,10 +100,10 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
   echo "---------------------------------------------------------------"
   for binary in $(find /out/ -maxdepth 1 -type f -executable | grep -v "^/out/afl"); do
     echo "Calculating distance for $binary .."
-    $SRC/aflgo/scripts/genDistance.sh $binary $SRC/changed.txt $SRC/test.sh $SRC/aflgo $SRC/distance.$(basename $binary).txt
+    $SRC/aflgo/scripts/genDistance.sh $binary $SRC/changed.txt $SRC/test.sh $SRC/aflgo $OUT/distance.$(basename $binary).txt
 
-    CFLAGS="$COPY_CFLAGS -distance=$SRC/distance.$(basename $binary).txt"
-    CXXFLAGS="$COPY_CXXFLAGS -distance=$SRC/distance.$(basename $binary).txt"
+    CFLAGS="$COPY_CFLAGS -distance=$OUT/distance.$(basename $binary).txt"
+    CXXFLAGS="$COPY_CXXFLAGS -distance=$OUT/distance.$(basename $binary).txt"
 
     if [ "${BUILD_UID-0}" -ne "0" ]; then
       su -c "$BUILD_CMD" builder
