@@ -106,6 +106,9 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
     echo "[!] Only one fuzzing binary will be instrumented: $binary"
   fi
 
+  # Better remove the original binary to prevent confusion
+  rm $binary
+
   echo "Calculating distance for $binary .."
   $SRC/aflgo/scripts/genDistance.sh $binary $SRC/changed.txt $SRC/test.sh $SRC/aflgo $OUT/distance.$(basename $binary).txt
 
