@@ -50,10 +50,14 @@ export CFLAGS="$CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
 export CXXFLAGS="$CFLAGS $CXXFLAGS_EXTRA"
 
 if [[ "$FUZZING_ENGINE" == aflgo ]]; then
+
+  COPY_CFLAGS=$CFLAGS
+  COPY_CXXFLAGS=$CXXFLAGS
+
   export CC=$SRC/aflgo/afl-clang-fast
   export CXX=$SRC/aflgo/afl-clang-fast++
-  export CFLAGS="$CFLAGS -O0 -g -flto -fuse-ld=gold -Wl,-plugin-opt=save-temps"
-  export CXXFLAGS="$CXXFLAGS -O0 -g -flto -fuse-ld=gold -Wl,-plugin-opt=save-temps"
+  export CFLAGS="$CFLAGS -flto -fuse-ld=gold -Wl,-plugin-opt=save-temps"
+  export CXXFLAGS="$CXXFLAGS -flto -fuse-ld=gold -Wl,-plugin-opt=save-temps"
 
   chmod +x $SRC/showlinenum.awk
 
@@ -93,22 +97,25 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
     chmod +x $SRC/test.sh
   fi
 
-  COPY_CFLAGS=$CFLAGS
-  COPY_CXXFLAGS=$CXXFLAGS
-
   echo "---------------------------------------------------------------"
-  for binary in $(find /out/ -maxdepth 1 -type f -executable | grep -v "^/out/afl"); do
-    echo "Calculating distance for $binary .."
-    $SRC/aflgo/scripts/genDistance.sh $binary $SRC/changed.txt $SRC/test.sh $SRC/aflgo $OUT/distance.$(basename $binary).txt
 
-    CFLAGS="$COPY_CFLAGS -distance=$OUT/distance.$(basename $binary).txt"
-    CXXFLAGS="$COPY_CXXFLAGS -distance=$OUT/distance.$(basename $binary).txt"
 
-    if [ "${BUILD_UID-0}" -ne "0" ]; then
-      su -c "$BUILD_CMD" builder
-    else
-      $BUILD_CMD
-    fi
-  done
+  #TODO Implement for multiple fuzzing binaries 
+  binary=$(find /out/ -maxdepth 1 -type f -executable | grep -v "^/out/afl" | head -n1)
+  if [ $(find /out/ -maxdepth 1 -type f -executable | grep -v "^/out/afl" | wc -l) -gt 1 ]; then
+    echo "[!] Only one fuzzing binary will be instrumented: $binary"
+  fi
+
+  echo "Calculating distance for $binary .."
+  $SRC/aflgo/scripts/genDistance.sh $binary $SRC/changed.txt $SRC/test.sh $SRC/aflgo $OUT/distance.$(basename $binary).txt
+
+  CFLAGS="$COPY_CFLAGS -distance=$OUT/distance.$(basename $binary).txt"
+  CXXFLAGS="$COPY_CXXFLAGS -distance=$OUT/distance.$(basename $binary).txt"
+
+  if [ "${BUILD_UID-0}" -ne "0" ]; then
+    su -c "$BUILD_CMD" builder
+  else
+    $BUILD_CMD
+  fi
 fi
 
