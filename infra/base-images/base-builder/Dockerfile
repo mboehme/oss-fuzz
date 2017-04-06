@@ -18,7 +18,6 @@ FROM gcr.io/oss-fuzz-base/base-clang
 MAINTAINER mike.aizatsky@gmail.com
 RUN apt-get install -y git subversion jq python3 zip make gawk python3-pip && \
     pip3 install --upgrade pip && \
-    pip3 install wllvm && \
     pip3 install networkx && \
     pip3 install pydotplus && \
     ln -s $(which python3) /usr/bin/python 

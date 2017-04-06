@@ -50,15 +50,16 @@ export CFLAGS="$CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
 export CXXFLAGS="$CFLAGS $CXXFLAGS_EXTRA"
 
 if [[ "$FUZZING_ENGINE" == aflgo ]]; then
-  export LLVM_COMPILER=clang
-  export CC=wllvm
+  export CC=$SRC/aflgo/afl-clang-fast
   export CXX=$SRC/aflgo/afl-clang-fast++
-  export CFLAGS="$CFLAGS -O0 -g"
-  export CXXFLAGS="$CXXFLAGS -O0 -g"
+  export CFLAGS="$CFLAGS -O0 -g -flto -fuse-ld=gold -Wl,-plugin-opt=save-temps"
+  export CXXFLAGS="$CXXFLAGS -O0 -g -flto -fuse-ld=gold -Wl,-plugin-opt=save-temps"
 
   chmod +x $SRC/showlinenum.awk
 
   pushd $SRC/$PROJECT > /dev/null
+
+  sleep 0.5 #Workaround for "Text file busy"
   git diff -U0 HEAD^ HEAD | $SRC/showlinenum.awk show_header=0 path=1 | grep -e "\.[ch]:[0-9]*:+" -e "\.cpp:[0-9]*:+" -e "\.cc:[0-9]*:+" | cut -d+ -f1 | rev | cut -c2- | rev > $SRC/changed.txt
   popd > /dev/null
 
@@ -92,8 +93,6 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
     chmod +x $SRC/test.sh
   fi
 
-  export CC=$SRC/aflgo/afl-clang-fast
-  export CXX=$SRC/aflgo/afl-clang-fast++
   COPY_CFLAGS=$CFLAGS
   COPY_CXXFLAGS=$CXXFLAGS
 
