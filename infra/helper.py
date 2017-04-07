@@ -54,6 +54,7 @@ def main():
   _add_engine_args(build_fuzzers_parser)
   _add_sanitizer_args(build_fuzzers_parser)
   _add_commit_args(build_fuzzers_parser)
+  _add_environment_args(build_fuzzers_parser)
   build_fuzzers_parser.add_argument('-e', action='append', help="set environment variable e.g. VAR=value")
   build_fuzzers_parser.add_argument('project_name')
   build_fuzzers_parser.add_argument('source_path', help='path of local source',
@@ -91,6 +92,9 @@ def main():
       'shell', help='Run /bin/bash in an image.')
   _add_commit_args(shell_parser)
   shell_parser.add_argument('project_name', help='name of the project')
+  _add_engine_args(shell_parser)
+  _add_sanitizer_args(shell_parser)
+  _add_environment_args(shell_parser)
 
   args = parser.parse_args()
   if args.command == 'generate':
@@ -172,6 +176,12 @@ def _add_commit_args(parser):
   parser.add_argument('-c', '--commit', help="Checkout a specific commit")
 
 
+def _add_environment_args(parser):
+  """Add common environment args."""
+  parser.add_argument('-e', action='append',
+                      help="set environment variable e.g. VAR=value")
+
+
 def _build_image(image_name, no_cache=False):
   """Build image."""
 
@@ -251,7 +261,9 @@ def build_fuzzers(args):
   env = [
       'BUILD_UID=%d' % os.getuid(),
       'FUZZING_ENGINE=' + args.engine,
-      'SANITIZER=' + args.sanitizer
+      'SANITIZER=' + args.sanitizer,
+      'PROJECT=' + args.project_name,
+      'COMMIT=' + (args.commit if args.commit is not None else "")
   ]
 
   if args.e:
@@ -351,7 +363,7 @@ def coverage(args):
   docker_run(run_args)
 
 
-def reproduce(run_args):
+def reproduce(args):
   """Reproduces a testcase in the container."""
   if not _check_project_exists(args.project_name):
     return 1
@@ -411,13 +423,21 @@ def shell(args):
   if not _build_image(args.project_name):
     return 1
 
-  run_args = [
+  env = [
+      'FUZZING_ENGINE=' + args.engine,
+      'SANITIZER=' + args.sanitizer,
+      'PROJECT=' + args.project_name,
+      'COMMIT=' + (args.commit if args.commit is not None else "")
+  ]
+
+  if args.e:
+    env += args.e
+
+  run_args = sum([['-e', v] for v in env], []) + [
       '-v', '%s/%s:/out' % (os.path.join(BUILD_DIR, 'out', args.project_name),
 			    (args.commit if args.commit is not None else "")),
       '-v', '%s/%s:/work' % (os.path.join(BUILD_DIR, 'work', args.project_name),
 			     (args.commit if args.commit is not None else "")),
-      '-e', 'PROJECT=%s' % args.project_name,
-      '-e', 'COMMIT=%s' % (args.commit if args.commit is not None else ""),
       '-t', 'gcr.io/oss-fuzz/%s' % args.project_name,
       '/bin/bash'
   ]
