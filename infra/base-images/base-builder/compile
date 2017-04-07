@@ -24,7 +24,7 @@ if ! [ -z "$COMMIT" ]; then
 
   echo "Checking out git history of $PROJECT .."
   if [ -f $(git rev-parse --git-dir)/shallow ]; then
-    git pull --unshallow 
+    git pull --unshallow
   fi
   git checkout $COMMIT
 
@@ -37,7 +37,7 @@ if [ -z "${SANITIZER_FLAGS-}" ]; then
 fi
 
 # compile script might override environment, use . to call it.
-. compile_${FUZZING_ENGINE}
+#. compile_${FUZZING_ENGINE}
 
 if [[ $SANITIZER_FLAGS = *sanitize=memory* ]]
 then
@@ -51,23 +51,26 @@ export CXXFLAGS="$CFLAGS $CXXFLAGS_EXTRA"
 
 if [[ "$FUZZING_ENGINE" == aflgo ]]; then
 
+  TMP_DIR=$(mktemp -d)
   COPY_CFLAGS=$CFLAGS
   COPY_CXXFLAGS=$CXXFLAGS
 
+  ADDITIONAL="-targets=$TMP_DIR/BBtargets.txt -outdir=$TMP_DIR -flto -fuse-ld=gold -Wl,-plugin-opt=save-temps"
+
   export CC=$SRC/aflgo/afl-clang-fast
   export CXX=$SRC/aflgo/afl-clang-fast++
-  export CFLAGS="$CFLAGS -flto -fuse-ld=gold -Wl,-plugin-opt=save-temps"
-  export CXXFLAGS="$CXXFLAGS -flto -fuse-ld=gold -Wl,-plugin-opt=save-temps"
+  export CFLAGS="$CFLAGS $ADDITIONAL"
+  export CXXFLAGS="$CXXFLAGS $ADDITIONAL"
 
   chmod +x $SRC/showlinenum.awk
 
   pushd $SRC/$PROJECT > /dev/null
 
   sleep 0.5 #Workaround for "Text file busy"
-  git diff -U0 HEAD^ HEAD | $SRC/showlinenum.awk show_header=0 path=1 | grep -e "\.[ch]:[0-9]*:+" -e "\.cpp:[0-9]*:+" -e "\.cc:[0-9]*:+" | cut -d+ -f1 | rev | cut -c2- | rev > $SRC/changed.txt
+  git diff -U0 HEAD^ HEAD | $SRC/showlinenum.awk show_header=0 path=1 | grep -e "\.[ch]:[0-9]*:+" -e "\.cpp:[0-9]*:+" -e "\.cc:[0-9]*:+" | cut -d+ -f1 | rev | cut -c2- | rev > $TMP_DIR/BBtargets.txt
   popd > /dev/null
 
-  if [ $(cat $SRC/changed.txt | wc -l) -eq 0 ]; then
+  if [ $(cat $TMP_DIR/BBtargets.txt | wc -l) -eq 0 ]; then
     echo "No changed source code lines in commit $COMMIT of $PROJECT. Aborting.."
     exit 1
   fi
@@ -90,6 +93,7 @@ else
   $BUILD_CMD
 fi
 
+
 if [[ "$FUZZING_ENGINE" == aflgo ]]; then
 
   if ! [ -f $SRC/test.sh ]; then
@@ -97,23 +101,16 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
     chmod +x $SRC/test.sh
   fi
 
+  #FILTER BBnames and Fnames
+  cat $TMP_DIR/BBnames.txt | rev | cut -d: -f2- | rev | sort | uniq > $TMP_DIR/BBnames2.txt && mv $TMP_DIR/BBnames2.txt $TMP_DIR/BBnames.txt
+  cat $TMP_DIR/Fnames.txt | grep -v -e "^__" -e "^asan\." -e "^llvm\." -e "^sancov\." > $TMP_DIR/Fnames2.txt && mv $TMP_DIR/Fnames2.txt $TMP_DIR/Fnames.txt
+
   echo "---------------------------------------------------------------"
+  $SRC/aflgo/scripts/genDistance.sh $OUT $SRC/test.sh $TMP_DIR
+  cp $TMP_DIR/distance.cfg.txt $OUT
 
-
-  #TODO Implement for multiple fuzzing binaries 
-  binary=$(find /out/ -maxdepth 1 -type f -executable | grep -v "^/out/afl" | head -n1)
-  if [ $(find /out/ -maxdepth 1 -type f -executable | grep -v "^/out/afl" | wc -l) -gt 1 ]; then
-    echo "[!] Only one fuzzing binary will be instrumented: $binary"
-  fi
-
-  # Better remove the original binary to prevent confusion
-  rm $binary
-
-  echo "Calculating distance for $binary .."
-  $SRC/aflgo/scripts/genDistance.sh $binary $SRC/changed.txt $SRC/test.sh $SRC/aflgo $OUT/distance.$(basename $binary).txt
-
-  CFLAGS="$COPY_CFLAGS -distance=$OUT/distance.$(basename $binary).txt"
-  CXXFLAGS="$COPY_CXXFLAGS -distance=$OUT/distance.$(basename $binary).txt"
+  CFLAGS="$COPY_CFLAGS -distance=$OUT/distance.cfg.txt"
+  CXXFLAGS="$COPY_CXXFLAGS -distance=$OUT/distance.cfg.txt"
 
   if [ "${BUILD_UID-0}" -ne "0" ]; then
     su -c "$BUILD_CMD" builder
@@ -121,4 +118,3 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
     $BUILD_CMD
   fi
 fi
-

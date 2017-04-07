@@ -55,7 +55,6 @@ def main():
   _add_sanitizer_args(build_fuzzers_parser)
   _add_commit_args(build_fuzzers_parser)
   _add_environment_args(build_fuzzers_parser)
-  build_fuzzers_parser.add_argument('-e', action='append', help="set environment variable e.g. VAR=value")
   build_fuzzers_parser.add_argument('project_name')
   build_fuzzers_parser.add_argument('source_path', help='path of local source',
                       nargs='?')
