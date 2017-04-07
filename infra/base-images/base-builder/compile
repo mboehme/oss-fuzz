@@ -37,7 +37,7 @@ if [ -z "${SANITIZER_FLAGS-}" ]; then
 fi
 
 # compile script might override environment, use . to call it.
-#. compile_${FUZZING_ENGINE}
+. compile_${FUZZING_ENGINE}
 
 if [[ $SANITIZER_FLAGS = *sanitize=memory* ]]
 then
