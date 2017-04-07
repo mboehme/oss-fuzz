@@ -78,7 +78,9 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
   popd > /dev/null
 
   if [ $(cat $TMP_DIR/BBtargets.txt | wc -l) -eq 0 ]; then
-    echo "No changed source <files> in commit $COMMIT of $PROJECT. Aborting.."
+    echo    "############################################################################"
+    echo -e "# \e[1;31mAborting ..\e[0m -- No changed source <files> in commit $COMMIT of $PROJECT."
+    echo    "############################################################################"
     rm -rf $TMP_DIR
     exit 1
   fi
@@ -109,8 +111,11 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
     chmod +x $SRC/test.sh
   fi
 
-  if ! [ -f $TMP_DIR/Ftargets.txt ]; then
-    echo "No changed source code <lines> in commit $COMMIT of $PROJECT. Aborting.."
+  if [ $(grep -Ev "^$" $TMP_DIR/Ftargets.txt | wc -l) -eq 0 ]; then
+    echo    "############################################################################"
+    echo -e "# \e[1;31mAborting ..\e[0m -- No changed source code <lines> in commit $COMMIT of $PROJECT."
+    echo    "############################################################################"
+    rm $OUT/*
     rm -rf $TMP_DIR
     exit 1
   fi
@@ -121,6 +126,9 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
 
   echo "---------------------------------------------------------------"
   $SRC/aflgo/scripts/genDistance.sh $OUT $SRC/test.sh $TMP_DIR
+
+  #Clean up
+  rm $OUT/*
   cp $TMP_DIR/distance.cfg.txt $OUT
   rm -rf $TMP_DIR
 
@@ -132,4 +140,9 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
   else
     $BUILD_CMD
   fi
+
+  echo    "#######################################################"
+  echo -e "# \e[1;32mSUCCESSFUL\e[0m"
+  echo    "#######################################################"
+
 fi
