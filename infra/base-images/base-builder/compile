@@ -49,7 +49,12 @@ fi
 export CFLAGS="$CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
 export CXXFLAGS="$CFLAGS $CXXFLAGS_EXTRA"
 
-if [[ "$FUZZING_ENGINE" == aflgo ]]; then
+if [[ "$FUZZING_ENGINE" == afl ]]; then
+
+  export CC=$SRC/afl/afl-clang-fast
+  export CXX=$SRC/afl/afl-clang-fast++
+
+elif [[ "$FUZZING_ENGINE" == aflgo ]]; then
 
   TMP_DIR=$WORK/tmp
   i=0
@@ -120,6 +125,15 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
     exit 1
   fi
 
+  #Clean up. Catch non-zero exit codes.
+  (
+    cd $SRC/$PROJECT >/dev/null
+    make clean
+    make distclean
+    exit 0
+  )
+
+
   #FILTER BBnames and Fnames
   cat $TMP_DIR/BBnames.txt | rev | cut -d: -f2- | rev | sort | uniq > $TMP_DIR/BBnames2.txt && mv $TMP_DIR/BBnames2.txt $TMP_DIR/BBnames.txt
   cat $TMP_DIR/Fnames.txt | grep -v -e "^__" -e "^asan\." -e "^llvm\." -e "^sancov\." > $TMP_DIR/Fnames2.txt && mv $TMP_DIR/Fnames2.txt $TMP_DIR/Fnames.txt
@@ -132,8 +146,8 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
   cp $TMP_DIR/distance.cfg.txt $OUT
   rm -rf $TMP_DIR
 
-  CFLAGS="$COPY_CFLAGS -distance=$OUT/distance.cfg.txt"
-  CXXFLAGS="$COPY_CXXFLAGS -distance=$OUT/distance.cfg.txt"
+  export CFLAGS="$COPY_CFLAGS -distance=$OUT/distance.cfg.txt"
+  export CXXFLAGS="$COPY_CXXFLAGS -distance=$OUT/distance.cfg.txt"
 
   if [ "${BUILD_UID-0}" -ne "0" ]; then
     su -c "$BUILD_CMD" builder
@@ -141,8 +155,8 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
     $BUILD_CMD
   fi
 
-  echo    "#######################################################"
-  echo -e "# \e[1;32mSUCCESSFUL\e[0m"
-  echo    "#######################################################"
-
 fi
+
+echo    "#######################################################"
+echo -e "# \e[1;32mSUCCESSFUL\e[0m"
+echo    "#######################################################"

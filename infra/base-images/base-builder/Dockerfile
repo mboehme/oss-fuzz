@@ -16,7 +16,7 @@
 
 FROM gcr.io/oss-fuzz-base/base-clang
 MAINTAINER mike.aizatsky@gmail.com
-RUN apt-get install -y git subversion jq python3 zip make gawk python3-pip && \
+RUN apt-get install -y git subversion jq python3 zip make gawk python3-pip vim && \
     pip3 install --upgrade pip && \
     pip3 install networkx && \
     pip3 install pydotplus && \
@@ -29,6 +29,9 @@ ENV SANITIZER_FLAGS_memory "-fsanitize=memory -fsanitize-memory-track-origins"
 
 # Default build flags for coverage.
 ENV COVERAGE_FLAGS="-fsanitize-coverage=trace-pc-guard,trace-cmp"
+
+# Workaround ASAN false positive: https://github.com/google/sanitizers/issues/647
+ENV ASAN_OPTIONS="detect_odr_violation=0"
 
 # Default sanitizer and fuzzing engine to use.
 ENV SANITIZER="address"

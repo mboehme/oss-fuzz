@@ -55,6 +55,7 @@ def main():
   _add_sanitizer_args(build_fuzzers_parser)
   _add_commit_args(build_fuzzers_parser)
   _add_environment_args(build_fuzzers_parser)
+  build_fuzzers_parser.add_argument('-d', '--detached', action='store_true', help='run container in detached mode') 
   build_fuzzers_parser.add_argument('project_name')
   build_fuzzers_parser.add_argument('source_path', help='path of local source',
                       nargs='?')
@@ -254,7 +255,7 @@ def build_fuzzers(args):
   """Build fuzzers."""
   project_name = args.project_name
 
-  if not _build_image(args.project_name):
+  if not args.detached and not _build_image(args.project_name):
     return 1
 
   env = [
@@ -276,6 +277,10 @@ def build_fuzzers(args):
     command += [
         '-v',
         '%s:/src/%s' % (_get_absolute_path(args.source_path), args.project_name)
+    ]
+  if args.detached:
+    command += [
+        '-d'
     ]
   command += [
       '-v', '%s/%s:/out' % (os.path.join(BUILD_DIR, 'out', project_name),

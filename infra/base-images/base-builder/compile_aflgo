@@ -33,14 +33,7 @@ pushd $WORK/afl > /dev/null
 #$CC $CFLAGS -c $SRC/aflgo/llvm_mode/afl-llvm-rt.o.c
 $SRC/aflgo/afl-clang-fast++ $CXXFLAGS -std=c++11 -O2 -c $SRC/libfuzzer/afl/afl_driver.cpp -I$SRC/libfuzzer
 ar r $LIB_FUZZING_ENGINE $WORK/afl/*.o
-#cp $WORK/afl/afl_driver.o $LIB_FUZZING_ENGINE
 popd > /dev/null
 rm -rf $WORK/afl
-
-# Copy afl tools necessary for fuzzing.
-pushd $SRC/afl > /dev/null
-make clean && make
-find . -name 'afl-*' -executable -type f | xargs cp -t $OUT
-popd > /dev/null
 
 echo " done."
