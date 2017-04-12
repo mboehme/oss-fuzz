@@ -273,15 +273,23 @@ def build_fuzzers(args):
       ['docker', 'run', '--rm', '-i', '--cap-add', 'SYS_PTRACE'] +
       sum([['-e', v] for v in env], [])
   )
+
   if args.source_path:
     command += [
         '-v',
         '%s:/src/%s' % (_get_absolute_path(args.source_path), args.project_name)
     ]
+
   if args.detached:
     command += [
-        '-d'
+        '-d' 
     ]
+
+  if args.commit is not None:
+    command += [
+         '--name', args.commit
+    ]
+
   command += [
       '-v', '%s/%s:/out' % (os.path.join(BUILD_DIR, 'out', project_name),
 			    (args.commit if args.commit is not None else "")),

@@ -19,15 +19,34 @@ echo "---------------------------------------------------------------"
 
 PROJECT=$1
 COMMIT=$2
+is_git=0
+is_svn=0
+
 if ! [ -z "$COMMIT" ]; then
   pushd $SRC/$PROJECT >/dev/null
 
-  echo "Checking out git history of $PROJECT .."
-  if [ -f $(git rev-parse --git-dir)/shallow ]; then
-    git pull --unshallow
+  if [ -d .git ]; then
+    echo "Checking out git history of $PROJECT .."
+    if [ -f $(git rev-parse --git-dir)/shallow ]; then
+      git pull --unshallow
+    fi
+    git checkout $COMMIT
+    is_git=1
+  elif svn info .; then
+    if [[ "$COMMIT" == master ]]; then
+      COMMIT=$(svnversion)
+    fi
+    svn update --revision $COMMIT
+    cat << EOF > $SRC/diff.sh
+#!/bin/bash
+git diff --no-index \$6 \$7 | sed -e "s~\$6~/\$(echo \$3 | cut -d" " -f1)~g"  -e "s~\$7~/\$(echo \$5 | cut -d" " -f1)~g"
+EOF
+    chmod +x $SRC/diff.sh
+    is_svn=1
+  else
+    echo "[!] Don't know how to check out revision $COMMIT."
+    exit 1
   fi
-  git checkout $COMMIT
-
   popd >/dev/null
 fi
 
@@ -61,7 +80,7 @@ elif [[ "$FUZZING_ENGINE" == aflgo ]]; then
   while [ -d $TMP_DIR ]; do
     TMP_DIR=$WORK/tmp.$i
     i=$((i + 1))
-  done 
+  done
   mkdir $TMP_DIR
 
   COPY_CFLAGS=$CFLAGS
@@ -79,7 +98,13 @@ elif [[ "$FUZZING_ENGINE" == aflgo ]]; then
   pushd $SRC/$PROJECT > /dev/null
 
   sleep 0.5 #Workaround for "Text file busy"
-  git diff -U0 HEAD^ HEAD | $SRC/showlinenum.awk show_header=0 path=1 | grep -e "\.[ch]:[0-9]*:+" -e "\.cpp:[0-9]*:+" -e "\.cc:[0-9]*:+" | cut -d+ -f1 | rev | cut -c2- | rev > $TMP_DIR/BBtargets.txt
+  if [ $is_git -eq 1 ]; then
+    git diff -U0 HEAD^ HEAD > $SRC/commit.diff
+  else
+    svn diff -r PREV:$COMMIT --diff-cmd=$SRC/diff.sh | grep -v -e "^=========================.*$" -e "^Index: .*$" > $SRC/commit.diff
+  fi
+  cat $SRC/commit.diff |  $SRC/showlinenum.awk show_header=0 path=1 | grep -e "\.[ch]:[0-9]*:+" -e "\.cpp:[0-9]*:+" -e "\.cc:[0-9]*:+" | cut -d+ -f1 | rev | cut -c2- | rev > $TMP_DIR/BBtargets.txt
+  cat $TMP_DIR/BBtargets.txt
   popd > /dev/null
 
   if [ $(cat $TMP_DIR/BBtargets.txt | wc -l) -eq 0 ]; then
@@ -111,11 +136,6 @@ fi
 
 if [[ "$FUZZING_ENGINE" == aflgo ]]; then
 
-  if ! [ -f $SRC/test.sh ]; then
-    echo "#!/bin/bash" > $SRC/test.sh
-    chmod +x $SRC/test.sh
-  fi
-
   if [ $(grep -Ev "^$" $TMP_DIR/Ftargets.txt | wc -l) -eq 0 ]; then
     echo    "############################################################################"
     echo -e "# \e[1;31mAborting ..\e[0m -- No changed source code <lines> in commit $COMMIT of $PROJECT."
@@ -125,21 +145,23 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
     exit 1
   fi
 
-  #Clean up. Catch non-zero exit codes.
-  (
-    cd $SRC/$PROJECT >/dev/null
+  #Clean up. Ignore non-zero exit codes.
+  set +eu
+    rm -rf $WORK/$PROJECT
+    pushd $SRC/$PROJECT >/dev/null
     make clean
     make distclean
-    exit 0
-  )
+    popd > /dev/null
+  set -eu
 
 
   #FILTER BBnames and Fnames
+  sleep 0.5
   cat $TMP_DIR/BBnames.txt | rev | cut -d: -f2- | rev | sort | uniq > $TMP_DIR/BBnames2.txt && mv $TMP_DIR/BBnames2.txt $TMP_DIR/BBnames.txt
-  cat $TMP_DIR/Fnames.txt | grep -v -e "^__" -e "^asan\." -e "^llvm\." -e "^sancov\." > $TMP_DIR/Fnames2.txt && mv $TMP_DIR/Fnames2.txt $TMP_DIR/Fnames.txt
+  cat $TMP_DIR/BBcalls.txt | sort | uniq > $TMP_DIR/BBcalls2.txt && mv $TMP_DIR/BBcalls2.txt $TMP_DIR/BBcalls.txt
 
   echo "---------------------------------------------------------------"
-  $SRC/aflgo/scripts/genDistance.sh $OUT $SRC/test.sh $TMP_DIR
+  $SRC/aflgo/scripts/genDistance.sh $OUT $TMP_DIR
 
   #Clean up
   rm $OUT/*
