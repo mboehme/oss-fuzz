@@ -22,21 +22,30 @@ COMMIT=$2
 is_git=0
 is_svn=0
 
+
 if ! [ -z "$COMMIT" ]; then
+
   pushd $SRC/$PROJECT >/dev/null
 
   if [ -d .git ]; then
+
     echo "Checking out git history of $PROJECT .."
     if [ -f $(git rev-parse --git-dir)/shallow ]; then
       git pull --unshallow
     fi
-    git checkout $COMMIT
+    if [[ "$COMMIT" != master ]]; then
+      git checkout $COMMIT
+    fi
     is_git=1
+
   elif svn info .; then
+
     if [[ "$COMMIT" == master ]]; then
       COMMIT=$(svnversion)
+    else 
+      svn update --revision $COMMIT
     fi
-    svn update --revision $COMMIT
+
     cat << EOF > $SRC/diff.sh
 #!/bin/bash
 git diff --no-index \$6 \$7 | sed -e "s~\$6~/\$(echo \$3 | cut -d" " -f1)~g"  -e "s~\$7~/\$(echo \$5 | cut -d" " -f1)~g"
@@ -47,6 +56,7 @@ EOF
     echo "[!] Don't know how to check out revision $COMMIT."
     exit 1
   fi
+
   popd >/dev/null
 fi
 
@@ -68,12 +78,25 @@ fi
 export CFLAGS="$CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
 export CXXFLAGS="$CFLAGS $CXXFLAGS_EXTRA"
 
-if [[ "$FUZZING_ENGINE" == afl ]]; then
+# Skip AFLGO preprocessing if distance.cfg.txt exists already
+if [ -f $OUT/distance.cfg.txt ]; then
+  DO_POSTPROCESS=0
+
+  export CC=$SRC/aflgo/afl-clang-fast
+  export CXX=$SRC/aflgo/afl-clang-fast++
+  export CFLAGS="$CFLAGS -distance=$OUT/distance.cfg.txt"
+  export CXXFLAGS="$CXXFLAGS -distance=$OUT/distance.cfg.txt"
+
+# Skip AFLGO preprocessing if fuzzing engine is afl
+elif [[ "$FUZZING_ENGINE" == afl ]]; then
+  DO_POSTPROCESS=0
 
   export CC=$SRC/afl/afl-clang-fast
   export CXX=$SRC/afl/afl-clang-fast++
 
+# Do AFLGO preprocessing
 elif [[ "$FUZZING_ENGINE" == aflgo ]]; then
+  DO_POSTPROCESS=1
 
   TMP_DIR=$WORK/tmp
   i=0
@@ -134,7 +157,7 @@ else
 fi
 
 
-if [[ "$FUZZING_ENGINE" == aflgo ]]; then
+if [ $DO_POSTPROCESS -eq 1 ]; then
 
   if [ $(grep -Ev "^$" $TMP_DIR/Ftargets.txt | wc -l) -eq 0 ]; then
     echo    "############################################################################"

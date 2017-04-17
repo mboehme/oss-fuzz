@@ -24,4 +24,4 @@ RUN cd afl-testcases/ && curl http://lcamtuf.coredump.cx/afl/demo/afl_testcases.
 RUN zip libjpeg_turbo_fuzzer_seed_corpus.zip afl-testcases/jpeg/full/images/* afl-testcases/jpeg_turbo/full/images/* $SRC/libjpeg-turbo/testimages/*
 
 WORKDIR libjpeg-turbo
-COPY build.sh libjpeg_turbo_fuzzer.cc $SRC/
+COPY build.sh constructFuzzer.sh libjpeg_turbo_fuzzer.cc $SRC/

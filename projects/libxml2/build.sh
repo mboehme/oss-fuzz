@@ -16,6 +16,10 @@
 #
 ################################################################################
 
+set +eu
+patch -f < $SRC/patch.diff
+set -eu
+
 ./autogen.sh
 ./configure
 make -j$(nproc) clean

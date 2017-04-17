@@ -19,8 +19,16 @@ autoreconf -fiv
 ./configure
 make "-j$(nproc)"
 
-$CXX $CXXFLAGS -std=c++11 -I. \
-    $SRC/libjpeg_turbo_fuzzer.cc -o $OUT/libjpeg_turbo_fuzzer \
+$SRC/constructFuzzer.sh $SRC/libjpeg_turbo_fuzzer2.cc
+
+if [ -f ./.libs/libturbojpeg.a ]; then
+  $CXX $CXXFLAGS -std=c++11 -I. \
+    $SRC/libjpeg_turbo_fuzzer2.cc -o $OUT/libjpeg_turbo_fuzzer \
     -lFuzzingEngine ./.libs/libturbojpeg.a
+else
+  $CXX $CXXFLAGS -std=c++11 -I. \
+    $SRC/libjpeg_turbo_fuzzer2.cc -o $OUT/libjpeg_turbo_fuzzer \
+    -lFuzzingEngine ./.libs/libjpeg.a
+fi
 
 cp $SRC/libjpeg_turbo_fuzzer_seed_corpus.zip $OUT/
