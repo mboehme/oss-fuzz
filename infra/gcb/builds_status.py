@@ -35,15 +35,14 @@ def scan_project_names(projects_dir):
   return sorted(projects)
 
 
-def upload_status(successes, failures, unstable):
+def upload_status(successes, failures):
   """Upload main status page."""
   env = Environment(loader=FileSystemLoader(os.path.join(SCRIPT_DIR,
                                                          'templates')))
   data = {
-      'projects': failures + successes + unstable,
+      'projects': failures + successes,
       'failures': failures,
       'successes': successes,
-      'unstable': unstable,
       'last_updated': datetime.datetime.utcnow().ctime()
   }
 
@@ -137,14 +136,18 @@ def main():
       successes.append({
           'name': project,
           'build_id': last_build['id'],
+          'finish_time': last_build['finishTime'],
+          'success': True,
       })
     else:
       failures.append({
           'name': project,
           'build_id': last_build['id'],
+          'finish_time': last_build['finishTime'],
+          'success': False,
       })
 
-  upload_status(successes, failures, [])
+  upload_status(successes, failures)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# Copyright 2017 Google Inc.
+# Copyright 2016 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,14 +15,12 @@
 ################################################################################
 
 FROM gcr.io/oss-fuzz-base/base-builder
-MAINTAINER Jakub Zawadzki <darkjames-ws@darkjames.pl>
+MAINTAINER alex.gaynor@gmail.com
+RUN apt-get install -y cmake zlib1g-dev libssl-dev
 
-RUN apt-get install -y make autoconf automake libtool libtool-bin \
-                       flex bison \
-                       libglib2.0-dev libgcrypt20-dev
+# Can't use --depth=1 because git.libssh.org is using the "dumb" HTTP
+# transport, which doesn't support it.
+RUN git clone https://git.libssh.org/projects/libssh.git
 
-RUN git clone --depth=1 https://code.wireshark.org/review/wireshark
-RUN git clone --depth=1 https://bitbucket.org/jwzawadzki/wireshark-fuzzdb.git
-
-WORKDIR wireshark
-COPY build.sh $SRC/
+WORKDIR libssh
+COPY build.sh libssh_server_fuzzer.cc $SRC/
