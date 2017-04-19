@@ -29,11 +29,11 @@ if ! [ -z "$COMMIT" ]; then
 
   if [ -d .git ]; then
 
-    echo "Checking out git history of $PROJECT .."
-    if [ -f $(git rev-parse --git-dir)/shallow ]; then
-      git pull --unshallow
-    fi
-    if [[ "$COMMIT" != master ]]; then
+    if [[ "$COMMIT" != master ]] || [[ "$FUZZING_ENGINE" == aflgo ]]; then
+      echo "Checking out git history of $PROJECT .."
+      if [ -f $(git rev-parse --git-dir)/shallow ]; then
+        git pull --unshallow
+      fi
       git checkout $COMMIT
     fi
     is_git=1
