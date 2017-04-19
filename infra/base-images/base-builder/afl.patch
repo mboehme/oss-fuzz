@@ -1,0 +1,13 @@
+diff --git a/types.h b/types.h
+index 21d32da..660f410 100644
+--- a/types.h
++++ b/types.h
+@@ -68,7 +68,7 @@ typedef int64_t  s64;
+           ((_ret >> 8) & 0x0000FF00)); \
+   })
+ 
+-#define R(x) (random() % (x))
++static long R(long x) { return (random() % (x)); }
+ 
+ #define STRINGIFY_INTERNAL(x) #x
+ #define STRINGIFY(x) STRINGIFY_INTERNAL(x)
