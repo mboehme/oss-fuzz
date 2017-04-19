@@ -17,11 +17,23 @@
 
 echo "---------------------------------------------------------------"
 
-PROJECT=$1
-COMMIT=$2
+if [ $# -ne 0 ]; then
+  PROJECT=$1
+fi
+if [ $# -le 1 ]; then
+  COMMIT=master
+else
+  COMMIT=$2
+fi
 is_git=0
 is_svn=0
 
+# PATCH AFL for LLVM 5.0 since rev e866932
+for afl in $(printf "$SRC/afl\n$SRC/aflgo\n"); do
+  pushd $afl > /dev/null
+  patch -f < $SRC/afl.patch
+  popd >/dev/null
+done
 
 if ! [ -z "$COMMIT" ]; then
 
