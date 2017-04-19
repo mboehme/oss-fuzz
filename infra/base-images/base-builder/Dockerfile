@@ -52,9 +52,9 @@ RUN mkdir afl && \
     rm -rf $SRC/afl-latest.tgz
 
 ADD https://raw.githubusercontent.com/jay/showlinenum/develop/showlinenum.awk $SRC/
-ADD afl.patch $SRC/
 
 COPY compile compile_afl compile_aflgo compile_libfuzzer coverage_report srcmap /usr/local/bin/
+COPY afl.patch $SRC/
 
 CMD ["compile"]
 
