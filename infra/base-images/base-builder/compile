@@ -17,23 +17,15 @@
 
 echo "---------------------------------------------------------------"
 
-if [ $# -ne 0 ]; then
-  PROJECT=$1
-fi
-if [ $# -le 1 ]; then
-  COMMIT=master
-else
-  COMMIT=$2
-fi
 is_git=0
 is_svn=0
 
-# PATCH AFL for LLVM 5.0 since rev e866932
-for afl in $(printf "$SRC/afl\n$SRC/aflgo\n"); do
-  pushd $afl > /dev/null
-  patch -f < $SRC/afl.patch
-  popd >/dev/null
-done
+# Workaround for build error of AFL since LLVM 5.0 rev e866932
+set +eu
+pushd $SRC/aflgo > /dev/null
+patch -f < $SRC/afl.patch
+popd >/dev/null
+set -eu
 
 if ! [ -z "$COMMIT" ]; then
 
@@ -78,7 +70,7 @@ if [ -z "${SANITIZER_FLAGS-}" ]; then
 fi
 
 # compile script might override environment, use . to call it.
-. compile_${FUZZING_ENGINE}
+. compile_aflgo
 
 if [[ $SANITIZER_FLAGS = *sanitize=memory* ]]
 then
@@ -87,24 +79,27 @@ then
   cp -R /usr/msan/lib/* /usr/lib/
 fi
 
+export CC=$SRC/aflgo/afl-clang-fast
+export CXX=$SRC/aflgo/afl-clang-fast++
 export CFLAGS="$CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
 export CXXFLAGS="$CFLAGS $CXXFLAGS_EXTRA"
+
+# Enable laf-intel if exists
+#export LAF_SPLIT_SWITCHES=1
+export LAF_TRANSFORM_COMPARES=1
+export LAF_SPLIT_COMPARES=1
+
 
 # Skip AFLGO preprocessing if distance.cfg.txt exists already
 if [ -f $OUT/distance.cfg.txt ]; then
   DO_POSTPROCESS=0
 
-  export CC=$SRC/aflgo/afl-clang-fast
-  export CXX=$SRC/aflgo/afl-clang-fast++
   export CFLAGS="$CFLAGS -distance=$OUT/distance.cfg.txt"
   export CXXFLAGS="$CXXFLAGS -distance=$OUT/distance.cfg.txt"
 
 # Skip AFLGO preprocessing if fuzzing engine is afl
 elif [[ "$FUZZING_ENGINE" == afl ]]; then
   DO_POSTPROCESS=0
-
-  export CC=$SRC/afl/afl-clang-fast
-  export CXX=$SRC/afl/afl-clang-fast++
 
 # Do AFLGO preprocessing
 elif [[ "$FUZZING_ENGINE" == aflgo ]]; then
@@ -123,8 +118,6 @@ elif [[ "$FUZZING_ENGINE" == aflgo ]]; then
 
   ADDITIONAL="-targets=$TMP_DIR/BBtargets.txt -outdir=$TMP_DIR -flto -fuse-ld=gold -Wl,-plugin-opt=save-temps"
 
-  export CC=$SRC/aflgo/afl-clang-fast
-  export CXX=$SRC/aflgo/afl-clang-fast++
   export CFLAGS="$CFLAGS $ADDITIONAL"
   export CXXFLAGS="$CXXFLAGS $ADDITIONAL"
 
@@ -196,7 +189,7 @@ if [ $DO_POSTPROCESS -eq 1 ]; then
   cat $TMP_DIR/BBcalls.txt | sort | uniq > $TMP_DIR/BBcalls2.txt && mv $TMP_DIR/BBcalls2.txt $TMP_DIR/BBcalls.txt
 
   echo "---------------------------------------------------------------"
-  $SRC/aflgo/scripts/genDistance.sh $OUT $TMP_DIR
+  $SRC/aflgo/scripts/genDistance.sh $OUT $TMP_DIR $FUZZER
 
   #Clean up
   rm $OUT/*

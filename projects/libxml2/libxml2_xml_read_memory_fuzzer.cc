@@ -26,7 +26,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 //    random_option_value &= ~XML_PARSE_RECOVER;
   }
 
-  if (random_option_value & XML_PARSE_RECOVER) fprintf(stderr, "XML_PARSE_RECOVER ");
+/*
+if (random_option_value & XML_PARSE_RECOVER) fprintf(stderr, "XML_PARSE_RECOVER ");
 if (random_option_value & XML_PARSE_NOENT) fprintf(stderr, "XML_PARSE_NOENT ");
 if (random_option_value & XML_PARSE_DTDLOAD) fprintf(stderr, "XML_PARSE_DTDLOAD ");
 if (random_option_value & XML_PARSE_DTDATTR) fprintf(stderr, "XML_PARSE_DTDATTR ");
@@ -50,6 +51,7 @@ if (random_option_value & XML_PARSE_COMPACT) fprintf(stderr, "XML_PARSE_COMPACT 
   if (random_option_value & XML_PARSE_IGNORE_ENC) fprintf(stderr, "XML_PARSE_IGNORE_ENC ");
   if (random_option_value & XML_PARSE_BIG_LINES) fprintf(stderr, "XML_PARSE_BIG_LINES ");
   if (random_option_value & XML_PARSE_NOXXE) fprintf(stderr, "XML_PARSE_NOXXE ");
+*/
 
   // Test default empty options value and some random combination.
   std::string data_string(reinterpret_cast<const char*>(data + (size > 4 ? 4 : 0)), size - (size > 4 ? 4 : 0));
