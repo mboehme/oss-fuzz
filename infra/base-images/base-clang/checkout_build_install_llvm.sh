@@ -29,11 +29,11 @@ cd clang
 LLVM_REVISION=$(grep -Po "CLANG_REVISION = '\K\d+(?=')" scripts/update.py)
 echo "Using LLVM revision: $LLVM_REVISION"
 
-cd $SRC && svn co http://llvm.org/svn/llvm-project/llvm/trunk@$LLVM_REVISION llvm
-cd $SRC/llvm/tools && svn co http://llvm.org/svn/llvm-project/cfe/trunk@$LLVM_REVISION clang
-cd $SRC/llvm/projects && svn co http://llvm.org/svn/llvm-project/compiler-rt/trunk@$LLVM_REVISION compiler-rt
-cd $SRC/llvm/projects && svn co http://llvm.org/svn/llvm-project/libcxx/trunk@$LLVM_REVISION libcxx
-cd $SRC/llvm/projects && svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk@$LLVM_REVISION libcxxabi
+cd $SRC && git clone http://llvm.org/git/llvm.git
+cd $SRC/llvm/tools && git clone http://llvm.org/git/clang.git 
+cd $SRC/llvm/projects && git clone http://llvm.org/git/compiler-rt.git
+cd $SRC/llvm/projects && git clone http://llvm.org/git/libcxx.git
+cd $SRC/llvm/projects && git clone http://llvm.org/git/libcxxabi.git 
 
 # Build & install
 mkdir -p $WORK/llvm
