@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y make autoconf automake libtool pkg-conf
 RUN git clone --depth 1 git://git.gnome.org/libxml2
 WORKDIR libxml2
 
+COPY patch.diff $SRC/
 COPY build.sh $SRC/
 COPY libxml2_xml_read_memory_fuzzer.* \
      libxml2_xml_regexp_compile_fuzzer.* \

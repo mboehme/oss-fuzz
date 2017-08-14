@@ -15,6 +15,16 @@
 #
 ################################################################################
 
+pushd /usr/share/aclocal
+if [ -f libtool.m4 ]; then
+set +eu
+  chmod 777 libtool.m4
+  cat lt~obsolete.m4 ltoptions.m4 ltsugar.m4 ltversion.m4 >> libtool.m4
+  chmod 644 libtool.m4
+set -eu
+fi
+popd
+
 cd expat
 
 ./buildconf.sh

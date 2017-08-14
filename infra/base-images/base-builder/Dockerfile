@@ -16,7 +16,11 @@
 
 FROM gcr.io/oss-fuzz-base/base-clang
 MAINTAINER mike.aizatsky@gmail.com
-RUN apt-get install -y git subversion jq python3 zip make libunwind8-dev binutils-dev libblocksruntime-dev
+RUN apt-get install -y git subversion jq python3 zip make libunwind8-dev binutils-dev libblocksruntime-dev gawk python3-pip vim && \
+    pip3 install --upgrade pip && \
+    pip3 install networkx && \
+    pip3 install pydotplus && \
+    ln -s $(which python3) /usr/bin/python 
 
 # Default build flags for various sanitizers.
 ENV SANITIZER_FLAGS_address "-fsanitize=address -fsanitize-address-use-after-scope"
@@ -26,12 +30,15 @@ ENV SANITIZER_FLAGS_memory "-fsanitize=memory -fsanitize-memory-track-origins"
 # Default build flags for coverage.
 ENV COVERAGE_FLAGS="-fsanitize-coverage=trace-pc-guard,trace-cmp"
 
+# Workaround ASAN false positive: https://github.com/google/sanitizers/issues/647
+ENV ASAN_OPTIONS="detect_odr_violation=0"
+
 # Coverage flags for generating coverage reports.
 ENV COVERAGE_FLAGS_coverage="-fsanitize-coverage=bb,no-prune,trace-pc-guard -O0"
 
 # Default sanitizer and fuzzing engine to use.
 ENV SANITIZER="address"
-ENV FUZZING_ENGINE="libfuzzer"
+ENV FUZZING_ENGINE="aflgo"
 
 # Path to fuzzing engine library.
 ENV LIB_FUZZING_ENGINE="/usr/lib/libFuzzingEngine.a"
@@ -47,13 +54,15 @@ RUN mkdir afl && \
     tar -xzv --strip-components=1 -f $SRC/afl-latest.tgz && \
     rm -rf $SRC/afl-latest.tgz
 
+ADD https://raw.githubusercontent.com/jay/showlinenum/develop/showlinenum.awk $SRC/
+
 ADD https://github.com/google/honggfuzz/archive/oss-fuzz.tar.gz $SRC/
 RUN mkdir honggfuzz && \
     cd honggfuzz && \
     tar -xzv --strip-components=1 -f $SRC/oss-fuzz.tar.gz && \
     rm -rf $SRC/oss-fuzz.tar.gz
 
-COPY compile compile_afl compile_libfuzzer compile_honggfuzz coverage_report srcmap /usr/local/bin/
+COPY compile compile_afl compile_aflgo compile_libfuzzeri compile_honggfuzz coverage_report srcmap /usr/local/bin/
 
 CMD ["compile"]
 

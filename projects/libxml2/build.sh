@@ -16,10 +16,15 @@
 #
 ################################################################################
 
+set +eu
+patch -f < $SRC/patch.diff
+set -eu
+
 ./autogen.sh
-./configure
+./configure --prefix $SRC/build
 make -j$(nproc) clean
 make -j$(nproc) all
+make install
 
 for fuzzer in libxml2_xml_read_memory_fuzzer libxml2_xml_regexp_compile_fuzzer; do
   $CXX $CXXFLAGS -std=c++11 -Iinclude/ \

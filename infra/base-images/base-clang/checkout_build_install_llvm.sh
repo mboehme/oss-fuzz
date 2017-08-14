@@ -15,7 +15,7 @@
 #
 ################################################################################
 
-LLVM_DEP_PACKAGES="build-essential make cmake ninja-build git subversion python2.7"
+LLVM_DEP_PACKAGES="build-essential make cmake ninja-build git subversion python2.7 binutils-gold binutils-dev"
 apt-get install -y $LLVM_DEP_PACKAGES
 
 # Checkout
@@ -41,7 +41,7 @@ cd $WORK/llvm
 cmake -G "Ninja" \
       -DLIBCXX_ENABLE_SHARED=OFF -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
       -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86" \
-      $SRC/llvm
+      -DLLVM_BINUTILS_INCDIR=/usr/include $SRC/llvm
 ninja
 ninja install
 rm -rf $WORK/llvm
@@ -62,6 +62,11 @@ rm -rf $WORK/msan
 cd $SRC && git clone https://chromium.googlesource.com/chromium/llvm-project/llvm/lib/Fuzzer libfuzzer
 
 cp $SRC/llvm/tools/sancov/coverage-report-server.py /usr/local/bin/
+
+# Install LLVMgold into bfd-plugins
+mkdir /usr/lib/bfd-plugins
+cp /usr/local/lib/libLTO.so /usr/lib/bfd-plugins
+cp /usr/local/lib/LLVMgold.so /usr/lib/bfd-plugins
 
 # Cleanup
 rm -rf $SRC/llvm

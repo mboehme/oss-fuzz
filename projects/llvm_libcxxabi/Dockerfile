@@ -16,7 +16,7 @@
 
 FROM gcr.io/oss-fuzz-base/base-builder
 MAINTAINER kcc@google.com
-RUN apt-get update && apt-get install -y subversion
+RUN apt-get update && apt-get install -y subversion wget
 
 RUN svn co https://llvm.org/svn/llvm-project/libcxxabi/trunk llvm_libcxxabi
 WORKDIR llvm_libcxxabi

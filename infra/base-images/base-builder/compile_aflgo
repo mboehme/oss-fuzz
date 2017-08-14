@@ -15,21 +15,23 @@
 #
 ################################################################################
 
-echo -n "Compiling afl to $LIB_FUZZING_ENGINE ..."
 
 # afl needs its special coverage flags
 export COVERAGE_FLAGS="-fsanitize-coverage=trace-pc-guard"
 
-pushd $SRC/afl > /dev/null
-CFLAGS="" CXXFLAGS="" make
-popd > /dev/null
-pushd $SRC/afl/llvm_mode > /dev/null
-CFLAGS="" CXXFLAGS="" make
+echo ""
+echo "Checking out aflgo .."
+pushd $SRC >/dev/null
+git clone --depth 1 https://github.com/aflgo/aflgo.git 
+cd aflgo && CFLAGS="" CXXFLAGS="" make
+cd llvm_mode && CFLAGS="" CXXFLAGS="" make
 popd > /dev/null
 
+echo "Compiling aflgo to $LIB_FUZZING_ENGINE ..."
 mkdir -p $WORK/afl
 pushd $WORK/afl > /dev/null
-$SRC/afl/afl-clang-fast++ $CXXFLAGS -std=c++11 -O2 -c $SRC/libfuzzer/afl/*.cpp -I$SRC/libfuzzer
+#$CC $CFLAGS -c $SRC/aflgo/llvm_mode/afl-llvm-rt.o.c
+$SRC/aflgo/afl-clang-fast++ $CXXFLAGS -std=c++11 -O2 -c $SRC/libfuzzer/afl/afl_driver.cpp -I$SRC/libfuzzer
 ar r $LIB_FUZZING_ENGINE $WORK/afl/*.o
 popd > /dev/null
 rm -rf $WORK/afl
