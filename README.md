@@ -1,3 +1,57 @@
+# OSS-Fuzz integrated with AFLGo for Patch Testing
+
+1) Install Docker (Ubuntu 16.04):
+  Follow instructions in Step.1 and Step.2 <a href="https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-on-ubuntu-16-04" target="_blank">here</a> or <a href="https://docs.docker.com/engine/installation/" target="_blank">here</a>.
+2) Prepare the Docker infrastructure:
+```bash
+# Checkout our integration
+git clone https://github.com/aflgo/oss-fuzz.git
+OSS=$PWD/oss-fuzz
+
+# Build necessary Docker images. Meanwhile, go have a coffee.
+cd oss-fuzz
+infra/base-images/all.sh
+```
+3) Let us take the <a href="http://www.darwinsys.com/file/" target="_blank">file</a>-utility as subject and focus on commit <a href="https://github.com/file/file/commit/69928a2" target="_blank">69928a2</a>.
+```bash
+subject=file
+commit=69928a2
+
+# Compile the version of file after commit 69928a2
+cd $OSS
+infra/helper.py build_fuzzers --engine aflgo -c $commit $subject
+
+# Find the compiled binary in the "build" directory. 
+ls build/out/$subject/$commit
+```
+
+4) If the directory `$OSS/build/out/$subject/$commit` contains the file `distance.cfg.txt`, the instrumentation was successful. The instrumentation may be unsuccessful i) if the commit changes only non-executable lines (e.g., comments), ii) or if the compilation of that version fails. Sometimes older versions cannot be built.
+
+5) Let's try to compile the binaries for the 100 most recent code-changing commits of the <a href="http://www.darwinsys.com/file/" target="_blank">file</a>-utility.
+```bash
+# Checkout the subject program
+git clone https://github.com/file/file.git
+SUBJECT=$PWD/file
+
+# Find 100 most recent code-changing commits
+cd $SUBJECT
+COMMITS=$(git log --pretty=format:"%h" -- "*.c" | head -n 100)
+
+# Build subject binaries for those commits
+cd $OSS
+for commit in $COMMITS; do 
+
+  # Build in detached mode (-d) using all available processors
+  for i in $(seq 1 $(nproc)); do
+    infra/helper.py build_fuzzers -d --engine aflgo -c $commit $subject
+    sleep 10
+  done
+  wait
+  
+done
+```
+
+
 # OSS-Fuzz - Continuous Fuzzing for Open Source Software
 
 > *Status*: Beta. We are now accepting applications from widely-used open source projects.
